@@ -631,12 +631,16 @@ class HermesState:
     def set_session_from_create(self, result: dict[str, Any]) -> None:
         self._state["session"]["id"] = str(result.get("session_id") or "")
         self._state["session"]["stored_id"] = str(result.get("stored_session_id") or "")
+        self._state["session"]["running"] = False
         info = result.get("info") or {}
         if isinstance(info, dict):
             self._state["session"]["cwd"] = str(info.get("cwd") or self._state["session"]["cwd"])
             self._state["hermes"]["model"] = str(info.get("model") or self._state["hermes"]["model"])
             self._state["hermes"]["provider"] = str(info.get("provider") or self._state["hermes"]["provider"])
         self._state["hermes"]["status"] = "idle"
+        self._state["messages"] = []
+        self._state["events"] = []
+        self._state["approval"] = {"pending": False, "message": "", "tool_name": "", "request": {}}
         self._state["updated_at"] = now_ts()
 
     def set_session_from_resume(self, result: dict[str, Any]) -> None:

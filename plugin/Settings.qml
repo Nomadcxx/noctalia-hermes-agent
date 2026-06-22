@@ -28,8 +28,8 @@ ColumnLayout {
   property string valueLauncherPrefix: cfg.launcherPrefix ?? defaults.launcherPrefix ?? ">hermes"
   property bool valuePanelPinned: cfg.panelPinned ?? defaults.panelPinned ?? false
   property bool valueShowToolActivity: cfg.showToolActivity ?? defaults.showToolActivity ?? false
-  property string valueDefaultProvider: (cfg.defaultProvider || detectedModel.provider || defaults.defaultProvider || "")
-  property string valueDefaultModel: (cfg.defaultModel || detectedModel.name || defaults.defaultModel || "")
+  property string valueDefaultProvider: (detectedModel.provider || cfg.defaultProvider || defaults.defaultProvider || "")
+  property string valueDefaultModel: (detectedModel.name || cfg.defaultModel || defaults.defaultModel || "")
   readonly property string selectedModelKey: modelKey(valueDefaultProvider, valueDefaultModel)
   property bool showAdvanced: false
   property string testResult: ""
@@ -300,6 +300,7 @@ ColumnLayout {
     pluginApi.pluginSettings.defaultModel = root.valueDefaultModel;
     pluginApi.saveSettings();
     root.mainInstance?.setPinnedPanelRequested(root.valuePanelPinned);
+    root.mainInstance?.setModel(root.valueDefaultProvider, root.valueDefaultModel, false);
   }
 
   function testConnection() {

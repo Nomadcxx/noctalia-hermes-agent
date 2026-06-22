@@ -27,6 +27,7 @@
     "approveSession": "Allow Session",
     "deny": "Deny",
     "newSession": "New Session",
+    "reset": "Reset",
     "resumeLatest": "Resume Latest",
     "placeholder": "Ask Hermes...",
     "bridgeOffline": "Bridge offline",

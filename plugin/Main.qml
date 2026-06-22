@@ -210,8 +210,19 @@ Item {
     });
   }
 
+  function clearChat() {
+    var next = JSON.parse(JSON.stringify(root.state));
+    next.messages = [];
+    next.events = [];
+    next.approval = { "pending": false, "message": "", "tool_name": "", "request": ({}) };
+    next.session.running = false;
+    root.state = next;
+  }
+
   function createSession() {
+    Logger.i("hermes-agent", "createSession called");
     postJson("/session/create", {}, function(data) {
+      Logger.i("hermes-agent", "createSession response:", data ? "OK session:" + (data.session?.id || "?") : "null");
       if (data) root.state = data;
     });
   }
@@ -241,7 +252,9 @@ Item {
   }
 
   function setModel(provider, model, persist) {
+    Logger.i("hermes-agent", "setModel:", provider, model, "persist:", persist);
     postJson("/model", { "provider": provider || "", "model": model || "", "persist": persist || false }, function(data) {
+      Logger.i("hermes-agent", "setModel response:", data ? "has state:" + !!data.state : "null");
       if (data && data.state) root.state = data.state;
     });
   }

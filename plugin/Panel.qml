@@ -286,6 +286,14 @@ Item {
           onClicked: mainInstance?.createSession()
         }
 
+        NButton {
+          text: pluginApi?.tr("panel.reset")
+          icon: "close"
+          outlined: true
+          enabled: root.messages.length > 0
+          onClicked: mainInstance?.createSession()
+        }
+
         NTextInput {
           id: composer
           Layout.fillWidth: true
