@@ -272,6 +272,7 @@ def scan_model_options(hermes_home: Path | str) -> list[dict[str, str]]:
     home = Path(hermes_home).expanduser()
     options: list[dict[str, str]] = []
     seen: set[tuple[str, str]] = set()
+    configured = _configured_providers(home)
 
     models_path = home / "models.json"
     if models_path.exists():
@@ -299,13 +300,50 @@ def scan_model_options(hermes_home: Path | str) -> list[dict[str, str]]:
             cache_data = {}
         if isinstance(cache_data, dict):
             for provider, payload in cache_data.items():
+                if configured and provider not in configured:
+                    continue
                 models = payload.get("models") if isinstance(payload, dict) else []
                 if not isinstance(models, list):
                     continue
                 for model in models:
                     add_model_option(options, seen, str(provider), str(model), str(model))
 
+    # Also add models from configured provider definitions in config.yaml.
+    # Some providers (e.g. ollama-local) list their models inline in the
+    # providers section, not in the global model cache.
+    _add_provider_config_models(home, configured, options, seen)
+
     return options
+
+
+def _configured_providers(hermes_home: Path) -> set[str]:
+    """Return set of provider names configured in config.yaml's providers section."""
+    config = load_yaml_like(hermes_home / "config.yaml")
+    providers = config.get("providers", {}) if isinstance(config, dict) else {}
+    if not isinstance(providers, dict):
+        return set()
+    return {str(k) for k in providers}
+
+
+def _add_provider_config_models(
+    hermes_home: Path,
+    configured: set[str],
+    options: list[dict[str, str]],
+    seen: set[tuple[str, str]],
+) -> None:
+    config = load_yaml_like(hermes_home / "config.yaml")
+    providers = config.get("providers", {}) if isinstance(config, dict) else {}
+    if not isinstance(providers, dict):
+        return
+    for name, cfg in providers.items():
+        if name not in configured:
+            continue
+        if not isinstance(cfg, dict):
+            continue
+        models = cfg.get("models")
+        if isinstance(models, dict):
+            for model_name in models:
+                add_model_option(options, seen, str(name), str(model_name), str(model_name))
 
 
 def add_model_option(
