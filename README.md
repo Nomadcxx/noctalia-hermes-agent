@@ -6,19 +6,20 @@ Shows Hermes status in the bar. Chat panel with streaming, tool activity, approv
 
 ## Install
 
-Add the repo as a plugin source in Noctalia Settings → Plugins → Sources:
+Add the repo as a plugin source in Noctalia:
 
-```
-https://github.com/Nomadcxx/noctalia-hermes-agent
-```
+1. Settings → Plugins → Sources
+2. Add custom repository: `https://github.com/Nomadcxx/noctalia-hermes-agent`
+3. Settings → Plugins → Install — pick Hermes Agent
 
 Or copy manually:
 
 ```bash
-cp -r plugin/ ~/.config/noctalia/plugins/noctalia-hermes-agent/
+git clone https://github.com/Nomadcxx/noctalia-hermes-agent
+cp -r noctalia-hermes-agent/hermes-agent/ ~/.config/noctalia/plugins/noctalia-hermes-agent/
 ```
 
-Restart Noctalia. The plugin starts a local Python bridge that connects to your Hermes gateway.
+Restart Noctalia.
 
 ## Architecture
 
@@ -68,7 +69,7 @@ Use this when Hermes runs on a remote server. The bridge stays on the server bou
 **Server:**
 
 ```bash
-cd plugin/scripts
+cd hermes-agent/scripts
 ./hermes-bridge-serve.sh 19777
 ```
 

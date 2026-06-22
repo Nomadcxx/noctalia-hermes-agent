@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "plugins": [
+    {
+      "id": "hermes-agent",
+      "name": "Hermes Agent",
+      "version": "1.1.0",
+      "author": "nomadx, FelipeMayerDev",
+      "description": "Status bar and chat panel for Hermes Agent. Stream responses, approve tools, switch models, and drive a remote bridge over SSH.",
+      "repository": "https://github.com/Nomadcxx/noctalia-hermes-agent",
+      "minNoctaliaVersion": "4.4.1",
+      "license": "MIT",
+      "lastUpdated": "2026-06-23T00:00:00Z"
+    }
+  ]
+}
