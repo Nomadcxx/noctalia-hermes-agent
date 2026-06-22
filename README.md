@@ -2,39 +2,46 @@
 
 A [Noctalia](https://github.com/noctalia-dev) plugin for [Hermes Agent](https://github.com/noctalia-dev/hermes-agent).
 
-Shows Hermes status in the bar. Provides a chat panel with streaming, tool-event activity, approval prompts, and one-shot. Adds a `>hermes` launcher integration. Supports driving a remote Hermes bridge over SSH.
-
-## Screenshots
-
-| Bar popup | Chat panel | Settings |
-|---|---|---|
-| ![Bar popup](plugin/screenshots/bar-popup.png) | ![Chat panel](plugin/screenshots/chat-panel.png) | ![Settings](plugin/screenshots/settings.png) |
-
-## Requirements
-
-- Hermes Agent installed and on `PATH` (or set `hermesCommand` in settings)
-- Noctalia 4.4.1+
+Shows Hermes status in the bar. Chat panel with streaming, tool activity, approval prompts, and one-shot. `>hermes` launcher integration. Drives a local or remote Hermes bridge.
 
 ## Install
+
+Add the repo as a plugin source in Noctalia Settings → Plugins → Sources:
+
+```
+https://github.com/Nomadcxx/noctalia-hermes-agent
+```
+
+Or copy manually:
 
 ```bash
 cp -r plugin/ ~/.config/noctalia/plugins/noctalia-hermes-agent/
 ```
 
-Restart Noctalia. The plugin runs a local Python bridge that connects to your Hermes gateway.
+Restart Noctalia. The plugin starts a local Python bridge that connects to your Hermes gateway.
 
 ## Architecture
 
-```
-┌──────────┐   HTTP    ┌──────────┐   RPC    ┌──────────────────┐
-│ QML UI   │◄─────────►│ Bridge   │◄────────►│ Hermes Gateway   │
-│ (panel,  │  /state   │ (Python) │ config.  │ (tui_gateway)    │
-│  bar,    │  /model   │          │ set      │                  │
-│  settings│  /prompt  │          │ session. + config.yaml     │
-└──────────┘           └──────────┘          └──────────────────┘
-```
+The plugin runs in one of two modes:
 
-The bridge reads the Hermes model catalog, gateway state, and config. The QML surfaces render state from the bridge. In normal mode the bridge spawns locally as a subprocess. In client-only mode you point it at a remote bridge over SSH.
+**Normal mode (default).** A Python bridge process spawns locally on `127.0.0.1:19777`. The QML UI sends HTTP requests to it. The bridge talks to your Hermes gateway via RPC and reads your config and model catalog from `~/.hermes`.
+
+**Client-only mode.** You run the bridge on a remote server. Forward its port to your local machine over SSH. The QML UI hits `127.0.0.1:19777` just like normal mode, but the SSH tunnel routes requests to the remote bridge. The remote bridge connects to the remote gateway. You paste the bridge token in Settings to authenticate.
+
+```
+Normal mode:        Client-only mode:
+
+QML UI              QML UI
+  │                   │
+  ▼                   ▼
+Bridge (local)      SSH tunnel (local port)
+  │                   │
+  ▼                   ▼ (SSH)
+Gateway (local)     Bridge (remote)
+                      │
+                      ▼
+                    Gateway (remote)
+```
 
 ## Model picker
 
