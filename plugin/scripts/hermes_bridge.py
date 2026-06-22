@@ -269,11 +269,42 @@ def normalize_cron_job(job: dict[str, Any], active: bool) -> dict[str, Any]:
 
 
 def scan_model_options(hermes_home: Path | str) -> list[dict[str, str]]:
+    """Return available model options for the plugin settings picker.
+
+    Sources, in priority order:
+    1. Provider config ``models:`` sections from config.yaml (user-defined)
+    2. Provider models cache (Hermes model catalog, filtered to configured providers)
+    3. models.json favorites (filtered to configured providers)
+
+    Providers from config.yaml's ``providers:`` section AND the active
+    ``model.provider`` are included.  This matches what hermes --tui shows.
+    """
     home = Path(hermes_home).expanduser()
     options: list[dict[str, str]] = []
     seen: set[tuple[str, str]] = set()
     configured = _configured_providers(home)
 
+    # 1. Models from configured provider definitions in config.yaml.
+    _add_provider_config_models(home, configured, options, seen)
+
+    # 2. Models from the Hermes model catalog cache, filtered to known providers.
+    cache_path = home / "provider_models_cache.json"
+    if cache_path.exists():
+        try:
+            cache_data = json.loads(cache_path.read_text())
+        except (OSError, json.JSONDecodeError):
+            cache_data = {}
+        if isinstance(cache_data, dict):
+            for cache_provider, payload in cache_data.items():
+                if cache_provider not in configured:
+                    continue
+                models = payload.get("models") if isinstance(payload, dict) else []
+                if not isinstance(models, list):
+                    continue
+                for model in models:
+                    add_model_option(options, seen, str(cache_provider), str(model), str(model))
+
+    # 3. models.json favorites — only for configured providers.
     models_path = home / "models.json"
     if models_path.exists():
         try:
@@ -284,45 +315,17 @@ def scan_model_options(hermes_home: Path | str) -> list[dict[str, str]]:
             for entry in models_data:
                 if not isinstance(entry, dict):
                     continue
+                provider = str(entry.get("provider") or "")
+                if provider not in configured:
+                    continue
                 add_model_option(
-                    options,
-                    seen,
-                    str(entry.get("provider") or ""),
+                    options, seen,
+                    provider,
                     str(entry.get("model") or ""),
                     str(entry.get("name") or entry.get("model") or ""),
                 )
 
-    cache_path = home / "provider_models_cache.json"
-    if cache_path.exists():
-        try:
-            cache_data = json.loads(cache_path.read_text())
-        except (OSError, json.JSONDecodeError):
-            cache_data = {}
-        if isinstance(cache_data, dict):
-            for provider, payload in cache_data.items():
-                if configured and provider not in configured:
-                    continue
-                models = payload.get("models") if isinstance(payload, dict) else []
-                if not isinstance(models, list):
-                    continue
-                for model in models:
-                    add_model_option(options, seen, str(provider), str(model), str(model))
-
-    # Also add models from configured provider definitions in config.yaml.
-    # Some providers (e.g. ollama-local) list their models inline in the
-    # providers section, not in the global model cache.
-    _add_provider_config_models(home, configured, options, seen)
-
     return options
-
-
-def _configured_providers(hermes_home: Path) -> set[str]:
-    """Return set of provider names configured in config.yaml's providers section."""
-    config = load_yaml_like(hermes_home / "config.yaml")
-    providers = config.get("providers", {}) if isinstance(config, dict) else {}
-    if not isinstance(providers, dict):
-        return set()
-    return {str(k) for k in providers}
 
 
 def _add_provider_config_models(
@@ -344,6 +347,24 @@ def _add_provider_config_models(
         if isinstance(models, dict):
             for model_name in models:
                 add_model_option(options, seen, str(name), str(model_name), str(model_name))
+
+
+def _configured_providers(hermes_home: Path) -> set[str]:
+    """Return set of providers the user can actually use.
+
+    Includes providers from config.yaml's ``providers:`` section AND
+    the currently active ``model.provider`` (which may be a built-in
+    Hermes provider that doesn't need an explicit config block).
+    """
+    config = load_yaml_like(hermes_home / "config.yaml")
+    providers = config.get("providers", {}) if isinstance(config, dict) else {}
+    result: set[str] = set()
+    if isinstance(providers, dict):
+        result.update(str(k) for k in providers)
+    active = config.get("model", {}).get("provider") if isinstance(config, dict) else None
+    if active and str(active).strip():
+        result.add(str(active).strip())
+    return result
 
 
 def add_model_option(
