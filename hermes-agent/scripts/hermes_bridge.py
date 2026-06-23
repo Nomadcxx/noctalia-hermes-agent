@@ -865,12 +865,43 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
         if not session_id:
             self._send_json(400, {"error": "missing_session_id"})
             return
-        response = self.server.rpc.dispatch("session.resume", {"session_id": session_id})
-        result = response.get("result", response)
-        if isinstance(result, dict):
-            self.server.state.set_session_from_resume(result)
-            self.server.state.write()
-        self._send_json(200, {"result": result, "state": self.server.state.snapshot()})
+        # Load messages directly from the SessionDB SQLite file.
+        # The session.resume RPC is async (thread pool) and doesn't return
+        # data inline, so we read the DB ourselves for instant feedback.
+        db_path = self.server.state.hermes_home / "state.db"
+        if db_path.exists():
+            try:
+                import sqlite3
+                conn = sqlite3.connect(str(db_path))
+                conn.row_factory = sqlite3.Row
+                rows = conn.execute(
+                    "SELECT role, content FROM messages WHERE session_id = ? ORDER BY timestamp",
+                    (session_id,),
+                ).fetchall()
+                if rows:
+                    normalized = [
+                        {
+                            "id": f"msg-{uuid.uuid4().hex}",
+                            "role": str(dict(r).get("role") or ""),
+                            "text": str(dict(r).get("content") or ""),
+                            "streaming": False,
+                            "ts": 0,
+                        }
+                        for r in rows
+                    ]
+                    self.server.state._state["messages"] = normalized
+                    self.server.state._state["session"]["id"] = session_id
+                    self.server.state._state["session"]["stored_id"] = session_id
+                    self.server.state._state["session"]["running"] = False
+                    self.server.state._state["hermes"]["status"] = "idle"
+                    self.server.state.write()
+                    self._send_json(200, {"state": self.server.state.snapshot()})
+                    return
+            except Exception:
+                pass
+        # Fallback: async RPC
+        self.server.rpc.dispatch("session.resume", {"session_id": session_id})
+        self._send_json(200, {"state": self.server.state.snapshot()})
 
     def _handle_prompt(self, payload: dict[str, Any]) -> None:
         text = str(payload.get("text") or "").strip()

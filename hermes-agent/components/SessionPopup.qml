@@ -5,155 +5,128 @@ import Quickshell
 import qs.Commons
 import qs.Widgets
 
-PopupWindow {
+Popup {
   id: root
-  visible: false
+  modal: true
+  dim: false
+  closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+  anchors.centerIn: Overlay.overlay
 
   property var pluginApi: null
   property var mainInstance: null
   property var screen: null
   property var sessions: []
   readonly property real maxHeight: (screen ? screen.height : 800) * 0.5
-  readonly property real rowHeight: 52 * Style.uiScaleRatio
+  readonly property real rowHeight: 44 * Style.uiScaleRatio
 
   signal sessionSelected(string sessionId)
 
-  width: 380 * Style.uiScaleRatio
-  height: Math.min(sessions.length * rowHeight + headerHeight + Style.marginM * 2, maxHeight)
-  color: "transparent"
-  mask: null
+  implicitWidth: Math.min(680 * Style.uiScaleRatio, (screen ? screen.width * 0.7 : 680))
+  implicitHeight: Math.min(Math.max(sessions.length * rowHeight, rowHeight) + headerHeight + padding * 2, maxHeight)
+  padding: Style.marginM
 
-  readonly property real headerHeight: 36 * Style.uiScaleRatio
+  readonly property real headerHeight: 32 * Style.uiScaleRatio
 
-  Rectangle {
-    anchors.fill: parent
+  background: Rectangle {
     radius: Style.radiusL
     color: Color.mSurface
     border.color: Color.mPrimary
     border.width: Style.borderM
+  }
 
-    ColumnLayout {
-      anchors.fill: parent
-      anchors.margins: Style.marginM
-      spacing: 0
+  contentItem: ColumnLayout {
+    spacing: 0
 
-      RowLayout {
+    RowLayout {
+      Layout.fillWidth: true
+      Layout.preferredHeight: root.headerHeight
+
+      NText {
+        text: pluginApi?.tr("panel.sessions") || "Sessions"
+        pointSize: Style.fontSizeM
+        font.weight: Style.fontWeightBold
+        color: Color.mOnSurface
         Layout.fillWidth: true
-        Layout.preferredHeight: root.headerHeight
-
-        NText {
-          text: pluginApi?.tr("panel.sessions") || "Sessions"
-          pointSize: Style.fontSizeM
-          font.weight: Style.fontWeightBold
-          color: Color.mOnSurface
-          Layout.fillWidth: true
-        }
-
-        NText {
-          text: root.sessions.length + " " + (pluginApi?.tr("panel.sessionsCount") || "sessions")
-          pointSize: Style.fontSizeXS
-          color: Color.mOnSurfaceVariant
-        }
       }
 
-      Rectangle {
-        Layout.fillWidth: true
-        Layout.preferredHeight: 1
-        color: Color.mOutline
-        Layout.bottomMargin: Style.marginS
+      NText {
+        text: root.sessions.length > 0 ? root.sessions.length + " sessions" : ""
+        pointSize: Style.fontSizeXXS
+        color: Color.mOnSurfaceVariant
       }
+    }
 
-      NScrollView {
-        Layout.fillWidth: true
-        Layout.fillHeight: true
-        horizontalPolicy: ScrollBar.AlwaysOff
+    Rectangle {
+      Layout.fillWidth: true
+      Layout.preferredHeight: 1
+      color: Color.mOutline
+      Layout.bottomMargin: Style.marginS
+    }
 
-        ColumnLayout {
-          width: parent ? parent.availableWidth : root.width - Style.marginM * 2
-          spacing: 2
+    NScrollView {
+      Layout.fillWidth: true
+      Layout.fillHeight: true
+      horizontalPolicy: ScrollBar.AlwaysOff
 
-          Repeater {
-            model: root.sessions
+      ColumnLayout {
+        width: parent ? parent.availableWidth : root.width
+        spacing: 2
 
-            delegate: Rectangle {
-              Layout.fillWidth: true
-              Layout.preferredHeight: root.rowHeight
-              color: sessionMouse.containsMouse ? Qt.alpha(Color.mPrimary, 0.08) : "transparent"
+        Repeater {
+          model: root.sessions
+
+          ItemDelegate {
+            Layout.fillWidth: true
+            Layout.preferredHeight: root.rowHeight
+            background: Rectangle {
               radius: Style.radiusM
+              color: hovered ? Qt.alpha(Color.mPrimary, 0.08) : "transparent"
+            }
+            onClicked: {
+              root.sessionSelected(modelData.id);
+              root.close();
+            }
 
-              RowLayout {
-                anchors.fill: parent
-                anchors.margins: Style.marginS
-                spacing: Style.marginS
+            contentItem: RowLayout {
+              spacing: Style.marginM
 
-                ColumnLayout {
-                  Layout.fillWidth: true
-                  spacing: 2
-
-                  NText {
-                    text: modelData.title || modelData.preview || modelData.id?.substring(0, 8) || "Session"
-                    pointSize: Style.fontSizeS
-                    font.weight: Style.fontWeightSemiBold
-                    color: Color.mOnSurface
-                    elide: Text.ElideRight
-                    Layout.fillWidth: true
-                  }
-
-                  NText {
-                    text: modelData.preview || ""
-                    pointSize: Style.fontSizeXS
-                    color: Color.mOnSurfaceVariant
-                    elide: Text.ElideRight
-                    Layout.fillWidth: true
-                    visible: text !== "" && modelData.title !== ""
-                  }
-                }
-
-                ColumnLayout {
-                  spacing: 2
-                  Layout.alignment: Qt.AlignVCenter
-
-                  NText {
-                    text: String(modelData.message_count || 0)
-                    pointSize: Style.fontSizeS
-                    font.weight: Style.fontWeightSemiBold
-                    color: Color.mPrimary
-                    Layout.alignment: Qt.AlignRight
-                  }
-
-                  NText {
-                    text: _relativeTime(modelData.started_at)
-                    pointSize: Style.fontSizeXXS
-                    color: Color.mOnSurfaceVariant
-                    Layout.alignment: Qt.AlignRight
-                  }
-                }
+              NText {
+                text: String(index + 1) + "."
+                pointSize: Style.fontSizeS
+                font.weight: Style.fontWeightSemiBold
+                color: Color.mPrimary
+                Layout.preferredWidth: 30 * Style.uiScaleRatio
               }
 
-              MouseArea {
-                id: sessionMouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: {
-                  root.sessionSelected(modelData.id);
-                  root.visible = false;
-                }
+              NText {
+                text: modelData.title || modelData.preview || modelData.id?.substring(0, 8) || "Session"
+                pointSize: Style.fontSizeS
+                font.weight: Style.fontWeightSemiBold
+                color: Color.mOnSurface
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+              }
+
+              NText {
+                text: _relativeTime(modelData.started_at)
+                pointSize: Style.fontSizeXXS
+                color: Color.mOnSurfaceVariant
+                Layout.preferredWidth: 48 * Style.uiScaleRatio
               }
             }
           }
+        }
 
-          Item {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            visible: root.sessions.length === 0
+        Item {
+          Layout.fillWidth: true
+          Layout.fillHeight: true
+          visible: root.sessions.length === 0
 
-            NText {
-              anchors.centerIn: parent
-              text: pluginApi?.tr("panel.noSessions") || "No recent sessions"
-              pointSize: Style.fontSizeS
-              color: Color.mOnSurfaceVariant
-            }
+          NText {
+            anchors.centerIn: parent
+            text: pluginApi?.tr("panel.noSessions") || "No recent sessions"
+            pointSize: Style.fontSizeS
+            color: Color.mOnSurfaceVariant
           }
         }
       }
@@ -171,11 +144,7 @@ PopupWindow {
     return Math.floor(hours / 24) + "d";
   }
 
-  function openNear(buttonItem) {
-    if (!buttonItem) return;
-    var pos = buttonItem.mapToItem(null, 0, 0);
-    x = Math.max(0, pos.x - width + buttonItem.width);
-    y = Math.min(pos.y + buttonItem.height + 4, (screen ? screen.height : 1080) - height - 20);
-    visible = true;
+  function openNear(_buttonItem) {
+    open();
   }
 }
