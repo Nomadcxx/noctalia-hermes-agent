@@ -42,7 +42,7 @@ Popup {
       Layout.preferredHeight: root.headerHeight
 
       NText {
-        text: pluginApi?.tr("panel.sessions") || "Sessions"
+        text: pluginApi?.tr("panel.sessions")
         pointSize: Style.fontSizeM
         font.weight: Style.fontWeightBold
         color: Color.mOnSurface
@@ -70,7 +70,7 @@ Popup {
 
       ColumnLayout {
         width: parent ? parent.availableWidth : root.width
-        spacing: 2
+        spacing: Style.marginXXS
 
         Repeater {
           model: root.sessions
@@ -124,7 +124,7 @@ Popup {
 
           NText {
             anchors.centerIn: parent
-            text: pluginApi?.tr("panel.noSessions") || "No recent sessions"
+            text: pluginApi?.tr("panel.noSessions")
             pointSize: Style.fontSizeS
             color: Color.mOnSurfaceVariant
           }

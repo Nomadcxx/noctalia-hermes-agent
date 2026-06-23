@@ -177,7 +177,7 @@ Item {
 
         NIconButton {
           icon: "history"
-          tooltipText: pluginApi?.tr("panel.sessions") || "Sessions"
+          tooltipText: pluginApi?.tr("panel.sessions")
           onClicked: {
             var btn = this;
             root.mainInstance?.listSessions(function(list) {
