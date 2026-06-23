@@ -799,6 +799,14 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
         if self.path == "/state":
             self._send_json(200, self.server.state.snapshot())
             return
+        if self.path == "/sessions":
+            try:
+                response = self.server.rpc.dispatch("session.list", {"limit": 10})
+                result = response.get("result", response)
+                self._send_json(200, result if isinstance(result, dict) else {"sessions": []})
+            except Exception:
+                self._send_json(200, {"sessions": []})
+            return
         self._send_json(404, {"error": "not_found"})
 
     def do_POST(self) -> None:
