@@ -179,13 +179,12 @@ Item {
           icon: "history"
           tooltipText: pluginApi?.tr("panel.sessions") || "Sessions"
           onClicked: {
-            if (!root.sessionsLoaded) {
-              root.mainInstance?.listSessions(function(list) {
-                root.sessionList = list;
-                root.sessionsLoaded = true;
-              });
-            }
-            sessionPopup.openNear(this);
+            var btn = this;
+            root.mainInstance?.listSessions(function(list) {
+              root.sessionList = list;
+              root.sessionsLoaded = true;
+              sessionPopup.openNear(btn);
+            });
           }
         }
 
@@ -338,9 +337,16 @@ Item {
     target: mainInstance
     enabled: mainInstance !== null
     function onStateChanged() {
-      Qt.callLater(function() {
-        transcriptScroll.contentItem.contentY = Math.max(0, transcriptScroll.contentItem.contentHeight - transcriptScroll.height);
-      });
+      scrollTimer.restart();
+    }
+  }
+
+  Timer {
+    id: scrollTimer
+    interval: 100
+    repeat: false
+    onTriggered: {
+      transcriptScroll.contentItem.contentY = Math.max(0, transcriptScroll.contentItem.contentHeight - transcriptScroll.height);
     }
   }
 
