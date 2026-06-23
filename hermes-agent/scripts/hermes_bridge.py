@@ -865,10 +865,9 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
         if not session_id:
             self._send_json(400, {"error": "missing_session_id"})
             return
-        # Load messages directly from the SessionDB SQLite file.
-        # The session.resume RPC is async (thread pool) and doesn't return
-        # data inline, so we read the DB ourselves for instant feedback.
+        # Load messages directly from the SessionDB for instant UI feedback.
         db_path = self.server.state.hermes_home / "state.db"
+        loaded = False
         if db_path.exists():
             try:
                 import sqlite3
@@ -894,13 +893,16 @@ class BridgeRequestHandler(BaseHTTPRequestHandler):
                     self.server.state._state["session"]["stored_id"] = session_id
                     self.server.state._state["session"]["running"] = False
                     self.server.state._state["hermes"]["status"] = "idle"
-                    self.server.state.write()
-                    self._send_json(200, {"state": self.server.state.snapshot()})
-                    return
+                    self.server.state._state["approved"] = (
+                        {"pending": False, "message": "", "tool_name": "", "request": {}}
+                    )
+                    loaded = True
             except Exception:
                 pass
-        # Fallback: async RPC
+        # Also dispatch session.resume to the gateway so it creates a proper
+        # session object. The gateway needs this for prompt.submit to work.
         self.server.rpc.dispatch("session.resume", {"session_id": session_id})
+        self.server.state.write()
         self._send_json(200, {"state": self.server.state.snapshot()})
 
     def _handle_prompt(self, payload: dict[str, Any]) -> None:
