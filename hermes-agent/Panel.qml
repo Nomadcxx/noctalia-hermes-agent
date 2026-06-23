@@ -28,6 +28,8 @@ Item {
   readonly property bool isBusy: session.running || (hermes.status || "") === "busy"
   readonly property bool pinned: cfg.panelPinned ?? defaults.panelPinned ?? false
   readonly property bool showToolActivity: cfg.showToolActivity ?? defaults.showToolActivity ?? false
+  property var sessionList: []
+  property bool sessionsLoaded: false
   readonly property string hermesIconPath: pluginApi?.pluginDir ? "file://" + pluginApi.pluginDir + "/assets/hermes-icon.png" : ""
   readonly property string status: bridgeOnline ? (hermes.status || "unknown") : "offline"
   readonly property string modelLabel: {
@@ -171,6 +173,20 @@ Item {
           text: root.pinned ? (pluginApi?.tr("panel.unpin")) : (pluginApi?.tr("panel.pin"))
           icon: root.pinned ? "pinned-off" : "pin"
           onClicked: root.setPinned(!root.pinned)
+        }
+
+        NIconButton {
+          icon: "history"
+          tooltipText: pluginApi?.tr("panel.sessions") || "Sessions"
+          onClicked: {
+            if (!root.sessionsLoaded) {
+              root.mainInstance?.listSessions(function(list) {
+                root.sessionList = list;
+                root.sessionsLoaded = true;
+              });
+            }
+            sessionPopup.openNear(this);
+          }
         }
 
         NIconButton {
@@ -331,5 +347,16 @@ Item {
   Component.onCompleted: {
     mainInstance?.setPinnedPanelRequested(root.pinned);
     mainInstance?.refreshState();
+  }
+
+  Components.SessionPopup {
+    id: sessionPopup
+    pluginApi: root.pluginApi
+    mainInstance: root.mainInstance
+    screen: root.pluginApi?.panelOpenScreen
+    sessions: root.sessionList
+    onSessionSelected: function(sid) {
+      root.mainInstance?.resumeSession(sid);
+    }
   }
 }
