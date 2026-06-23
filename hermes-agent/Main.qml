@@ -233,6 +233,12 @@ Item {
     });
   }
 
+  function listSessions(callback) {
+    getJson("/sessions", function(data) {
+      callback(data ? (data.sessions || []) : []);
+    });
+  }
+
   function sendPrompt(text) {
     postJson("/prompt", { "text": text }, function(data) {
       if (data && data.state) root.state = data.state;
