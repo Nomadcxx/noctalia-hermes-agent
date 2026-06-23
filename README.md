@@ -62,50 +62,96 @@ To change the active model, select a provider/model in Settings and click Apply.
 
 **Reset** clears the local chat pane without a server roundtrip. Visible when the pane has messages. Does not create a new Hermes session.
 
-## Client-only mode
+## Client-only mode (remote bridge)
 
-Use this when Hermes runs on a remote server. The bridge stays on the server bound to `127.0.0.1`. Forward it to the client over an SSH tunnel.
+Run Hermes on a powerful server. Control it from your laptop. The bridge stays on the server bound to `127.0.0.1`. Your laptop reaches it through an SSH tunnel.
 
-**Server:**
+### Concepts
+
+The **bridge** is a Python HTTP server on `127.0.0.1:19777` that sits between the QML UI and the Hermes gateway. It authenticates requests with a **bridge token** — a random secret generated on first launch and stored in `~/.cache/noctalia-hermes/bridge.token`.
+
+In normal mode everything runs locally and the token is read from disk. In client-only mode you copy the token from the server and paste it into Settings. The plugin sends it in the `X-Bridge-Token` header with every request.
+
+The bridge token is 43 characters of base64. It lives in the same directory as the state file and persists across restarts. Run `hermes-bridge-serve.sh` on the server to start the bridge and print the token and a ready-to-use SSH tunnel command.
+
+### Setup
+
+**On the server** (where Hermes and the gateway live):
 
 ```bash
 cd hermes-agent/scripts
 ./hermes-bridge-serve.sh 19777
 ```
 
-Copy the token.
+The script starts the bridge, prints the token, and shows the SSH command to run on your laptop. Example output:
 
-**Client:**
+```
+Bridge env written to /home/user/.config/noctalia/plugins/.bridge.env
+Token: I4ZvQnT0Bgf0FxL0azZgwYXb0KCruAMfVbGHH6WD7U
 
-```bash
-ssh -L 19777:127.0.0.1:19777 user@server
+SSH tunnel command:
+ssh -N -L 19777:127.0.0.1:19777 user@server
 ```
 
-**Plugin settings** (Advanced section):
+If you already have a token file, the script uses the existing one. Delete `~/.cache/noctalia-hermes/bridge.token` on the server to regenerate it. Only do this if you suspect the token leaked.
 
-1. Enable Client-only mode
-2. Set host to `127.0.0.1`, port to `19777`
-3. Paste the token
+**On the laptop** (where Noctalia runs):
 
-Gateway controls, model selection, sessions, approvals, and the launcher all drive the remote bridge.
+Open an SSH tunnel. Keep it alive while you use the plugin:
 
-### Troubleshooting client-only mode
+```bash
+ssh -N -L 19777:127.0.0.1:19777 user@server
+```
 
-**Port already in use.** A local bridge from before you toggled the mode, or a stale tunnel.
+For a server on a different local port (e.g. a socat forwarder on `192.168.0.10:19778`):
+
+```bash
+ssh -N -L 19777:192.168.0.10:19778 user@gateway-host
+```
+
+**Plugin Settings** (Advanced section):
+
+1. Enable **Client-only mode**
+2. Set **Bridge host** to `127.0.0.1` (the tunnel endpoint) and **Bridge port** to `19777`
+3. Paste the **Bridge token** from the server
+4. Click **Apply**
+
+The bar pill should turn green within a few seconds.
+
+### Finding your token
+
+- The bridge prints it on startup when you run `hermes-bridge-serve.sh`
+- It lives in `~/.cache/noctalia-hermes/bridge.token` on the server
+- Test Connection in Settings only checks `/health` (no token needed). A green result means the bridge is reachable. Use `curl` for a real `/state` check:
+
+```bash
+curl -H "X-Bridge-Token: <token>" http://127.0.0.1:19777/state
+```
+
+A 403 means the token is wrong. Compare character by character — leading dashes and trailing newlines are common mistakes.
+
+### Troubleshooting
+
+**Port already in use.** A local bridge process from before you turned on client-only mode, or a stale tunnel.
 
 ```bash
 ss -ltnp | grep 19777
 pkill -f hermes_bridge.py
 ```
 
-**Bar pill stays grey or shows offline.** The bridge reports `unknown` until a session runs. If the gateway is running the pill shows `idle`. If it stays unknown the remote gateway may be down. Verify the tunnel:
+**Bar pill grey or Offline.** The bridge reports `unknown` until a session runs. If the gateway is running the pill shows idle. Verify:
 
 ```bash
+# Health (no token needed — confirms bridge is reachable)
 curl -s 127.0.0.1:19777/health
+
+# State (needs token — confirms auth and gateway status)
 curl -s -H "X-Bridge-Token: <token>" 127.0.0.1:19777/state
 ```
 
-**Toggle cycle (normal → client-only → normal).** The plugin now uses mode-dependent bridge host/port. Normal mode always hits `127.0.0.1:19777`. Client-only mode uses your configured remote host/port. Toggling back restores the local bridge correctly.
+**Toggle cycle (normal → client-only → normal).** Mode-dependent bridge host/port prevents the local token from hitting the remote bridge on toggle. Normal mode always uses `127.0.0.1:19777`. Client-only mode uses your configured host/port.
+
+**Test Connection succeeds but bar shows offline.** The Test button only hits `/health`, which does not require a token. Check for a 403 on `/state` — wrong token, wrong host, or wrong port.
 
 ## Settings
 
